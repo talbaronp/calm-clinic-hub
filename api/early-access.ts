@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { createSupabaseServerClient } from '../src/lib/supabaseServer';
+import { createClient } from '@supabase/supabase-js';
 
 /**
  * POST /api/early-access
@@ -40,7 +40,20 @@ export default async function handler(
     const referrer = req.headers['referer'] || req.headers['referrer'] || null;
 
     // Create Supabase client
-    const supabase = createSupabaseServerClient();
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error('Missing Supabase environment variables');
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
 
     // Check if email already exists (using the unique index on lower(email))
     const { data: existing, error: checkError } = await supabase
