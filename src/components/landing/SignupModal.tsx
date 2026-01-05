@@ -9,6 +9,11 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  submitEarlyAccess,
+  getEarlyAccessMessage,
+  getUTMParamsFromURL,
+} from "@/lib/api";
 
 const emailSchema = z.object({
   email: z
@@ -29,6 +34,7 @@ const SignupModal = ({ open, onOpenChange }: SignupModalProps) => {
   const [error, setError] = useState("");
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,11 +49,28 @@ const SignupModal = ({ open, onOpenChange }: SignupModalProps) => {
 
     setIsLoading(true);
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    try {
+      // Get UTM parameters from URL
+      const utmParams = getUTMParamsFromURL();
 
-    setIsLoading(false);
-    setIsSubmitted(true);
+      // Submit to API
+      const response = await submitEarlyAccess(email, utmParams);
+
+      setIsLoading(false);
+
+      if (response.status === "error") {
+        setError(response.error || "משהו השתבש, אפשר לנסות שוב.");
+        return;
+      }
+
+      // Success - show appropriate message
+      const message = getEarlyAccessMessage(response.status);
+      setSuccessMessage(message);
+      setIsSubmitted(true);
+    } catch (err) {
+      setIsLoading(false);
+      setError("משהו השתבש, אפשר לנסות שוב.");
+    }
   };
 
   const handleClose = (newOpen: boolean) => {
@@ -57,6 +80,7 @@ const SignupModal = ({ open, onOpenChange }: SignupModalProps) => {
         setEmail("");
         setError("");
         setIsSubmitted(false);
+        setSuccessMessage("");
       }, 200);
     }
     onOpenChange(newOpen);
@@ -138,11 +162,13 @@ const SignupModal = ({ open, onOpenChange }: SignupModalProps) => {
               </svg>
             </div>
             <h3 className="text-xl font-semibold text-foreground">
-              תודה!
+              {successMessage || "תודה!"}
             </h3>
-            <p className="text-muted-foreground">
-              נעדכן אותך בקרוב.
-            </p>
+            {successMessage.includes("תודה") && (
+              <p className="text-muted-foreground">
+                נעדכן אותך בקרוב.
+              </p>
+            )}
             <Button
               variant="ghost"
               onClick={() => handleClose(false)}
